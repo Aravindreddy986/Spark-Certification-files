@@ -1,5 +1,12 @@
+----------- list tables and list databases -------
+
 sqoop list-databases \
   --connect "jdbc:mysql://sandbox.hortonworks.com:3306" \
+  --username retail_dba \
+  --password hadoop
+  
+ sqoop list-databases \
+  --connect jdbc:mysql://localhost:3306 \
   --username retail_dba \
   --password hadoop
 
@@ -8,6 +15,52 @@ sqoop list-tables \
   --username retail_dba \
   --password hadoop
 
+sqoop list-tables \
+  --connect "jdbc:mysql://localhost:3306/retail_db" \
+  --username retail_dba \
+  --password hadoop
+   
+ --------------------- eval command ---------------------------------
+ 
+sqoop eval \
+  --connect jdbc:mysql://localhost:3306/retail_db \
+  --username retail_dba \
+  --password hadoop \
+  --query "select count(1) from order_items"
+  
+  sqoop eval \
+  --connect jdbc:mysql://localhost:3306/retail_db \
+  --username retail_user \
+  --password cloudera \
+  --query "select * from order_items LIMIT 10"
+
+sqoop eval \
+  --connect jdbc:mysql://localhost:3306/retail_db \
+  --username retail_user \
+  --password cloudera \
+  --query "insert into order values(\"2017-10-31\"....)" use single quotes or incase of double quotes use escape charecter \
+  
+-- Reference: http://www.hadoop.com/content/hadoop/en/developers/home/developer-admin-resources/get-started-with-hadoop-tutorial/exercise-1.html
+
+------------------- Import commands ------------------------
+
+sqoop import
+ --connect jdbc:mysql://localhost:3306/retail_db \
+  --username retail_user \
+  --password cloudera \
+  --table order_items
+  --target-dir /user/cloudera/sqoop-import/retail_db/order_items
+
+sqoop import \
+  --connect jdbc:mysql://ms.itversity.com:3306/retail_db \
+  --username retail_user \
+  --password itversity \
+  --table order_items \
+  --warehouse-dir /user/dgadiraju/sqoop_import/retail_db
+
+hadoop fs -tail /user/cloudera/sqoop-import/retail_db/order_items
+hadoop fs -rm -R /user/cloudera/sqoop-import/retail_db/order_items
+
 sqoop import \
   --connect "jdbc:mysql://hiveserver:3306/retail_db" \
   --username=retail_dba \
@@ -15,15 +68,176 @@ sqoop import \
   --table departments \
   --as-textfile \
   --target-dir=/user/root/departments
+
+
+------------ execution life cycle --------------------------
+Map reduce code
+Need to uderstand the structure of the table
+once the structure is identified, generates a java code with the table object
+
+sqoop import \
+  --connect jdbc:mysql://ms.itversity.com:3306/retail_db \
+  --username retail_user \
+  --password itversity \
+  --table order_items \
+  --warehouse-dir /user/dgadiraju/sqoop_import/retail_db
+  --num-mappers 1
   
-sqoop eval \
-  --connect "jdbc:mysql://sandbox.hortonworks.com:3306/retail_db" \
-  --username retail_dba \
-  --password hadoop \
-  --query "select count(1) from order_items"
+-------------- Managing directories --------------------
 
--- Reference: http://www.hadoop.com/content/hadoop/en/developers/home/developer-admin-resources/get-started-with-hadoop-tutorial/exercise-1.html
+sqoop import \
+  --connect jdbc:mysql://ms.itversity.com:3306/retail_db \
+  --username retail_user \
+  --password itversity \
+  --table order_items \
+  --warehouse-dir /user/dgadiraju/sqoop_import/retail_db
+  --num-mappers 1
+  --delete-target-dir
+  
+ sqoop import \
+  --connect jdbc:mysql://ms.itversity.com:3306/retail_db \
+  --username retail_user \
+  --password itversity \
+  --table order_items \
+  --warehouse-dir /user/dgadiraju/sqoop_import/retail_db
+  --num-mappers 1
+  --append
 
+table need to have primary column, what if table does not have primary key
+things to remember when using split-by, column needs to be indexed, 
+values in the column should be spare and
+often it should be sequence generated
+the column should not have null values
+ -- Number of mappers, Splitting using custom columns and splitting using non numeric columns
+ 
+ sqoop import \
+  --connect jdbc:mysql://ms.itversity.com:3306/retail_db \
+  --username retail_user \
+  --password itversity \
+  --table order_items \
+  --warehouse-dir /user/dgadiraju/sqoop_import/retail_db
+  --split-by columname
+
+ sqoop import \
+  --connect jdbc:mysql://ms.itversity.com:3306/retail_db \
+  --username retail_user \
+  --password itversity \
+  --table order_items \
+  --warehouse-dir /user/dgadiraju/sqoop_import/retail_db
+  --num-mappers 1
+  
+ sqoop import \
+  -Dorg.apache.sqoop.splitter.allow_text_splitter=true
+  --connect jdbc:mysql://ms.itversity.com:3306/retail_db \
+  --username retail_user \
+  --password itversity \
+  --table order_items \
+  --warehouse-dir /user/dgadiraju/sqoop_import/retail_db
+  --split-by columname
+  
+ reset the number of mappers to one if there is no primary key on the table
+  sqoop import \
+  --connect jdbc:mysql://ms.itversity.com:3306/retail_db \
+  --username retail_user \
+  --password itversity \
+  --table order_items \
+  --warehouse-dir /user/dgadiraju/sqoop_import/retail_db
+  --autoreset-to-one-mapper
+  
+ ---------------- different file formats -----------------------
+ ---- Text file, Sequence file, Avro file, Parquet file
+ 
+  sqoop import \
+  --connect jdbc:mysql://ms.itversity.com:3306/retail_db \
+  --username retail_user \
+  --password itversity \
+  --table order_items \
+  --warehouse-dir /user/dgadiraju/sqoop_import/retail_db
+  --num-mappers 2
+  --as-avrofile
+  --as-sequencefile
+  --as-textfile
+  --as-parquetfile
+  
+ ------------ Compresion algorithm
+ -- Gzip, Deflate, Snappy, Others
+
+  sqoop import \
+  --connect jdbc:mysql://ms.itversity.com:3306/retail_db \
+  --username retail_user \
+  --password itversity \
+  --table order_items \
+  --warehouse-dir /user/dgadiraju/sqoop_import/retail_db
+  --num-mappers 2
+  --as-textfile
+  --compress
+  
+ in core-site.xml search for compress
+   
+  sqoop import \
+  --connect jdbc:mysql://ms.itversity.com:3306/retail_db \
+  --username retail_user \
+  --password itversity \
+  --table order_items \
+  --warehouse-dir /user/dgadiraju/sqoop_import/retail_db
+  --num-mappers 2
+  --as-textfile
+  --compress
+  --compression-codec org.apache.hadoop.io.compress.SnappyCodec
+
+------------------ boundary query--------------
+
+  sqoop import \
+  --connect jdbc:mysql://ms.itversity.com:3306/retail_db \
+  --username retail_user \
+  --password itversity \
+  --table order_items \
+  --warehouse-dir /user/dgadiraju/sqoop_import/retail_db
+  --bounday-query 'select min(orderid), max(orderid) from tablename where orderid >= ?'
+
+hardcoding the range
+sqoop import \
+  --connect jdbc:mysql://ms.itversity.com:3306/retail_db \
+  --username retail_user \
+  --password itversity \
+  --table order_items \
+  --warehouse-dir /user/dgadiraju/sqoop_import/retail_db
+  --bounday-query 'select 10000, 172998'
+
+table and column is mutually exclusive with query
+remember to use \$conditions in the where clause
+#for query split-by is mandatory if num-mappers is greater than 1
+sqoop import \
+  --connect jdbc:mysql://ms.itversity.com:3306/retail_db \
+  --username retail_user \
+  --password itversity \
+  --table order_items \
+  --columns orderid, column2, column3 \
+  --warehouse-dir /user/dgadiraju/sqoop_import/retail_db
+  
+sqoop import \
+  --connect jdbc:mysql://ms.itversity.com:3306/retail_db \
+  --username retail_user \
+  --password itversity \
+  --warehouse-dir /user/dgadiraju/sqoop_import/retail_db \
+  --num-mappers 2 \
+  --query 'select query '
+  --split-by orderid
+  
+------- Delimiters and handling nulls -----------------------------
+
+sqoop import \
+  --connect jdbc:mysql://ms.itversity.com:3306/retail_db \
+  --username retail_user \
+  --password itversity \
+  --table order_items \
+  --warehouse-dir /user/dgadiraju/sqoop_import/retail_db
+  --null-non-string -1
+  --fields-terminated-by "\t" \
+  --lines-terminated-by ":"
+  
+  
+--------------------------------------------------
 sqoop import-all-tables \
   --connect "jdbc:mysql://cdh54itversity-mn0.southeastasia.cloudapp.azure.com:3306/retail_db" \
   --username retail_dba \
